@@ -3,7 +3,7 @@
 #include <iostream>
 #include <fstream>
 #include <sstream>
-#include <string.h>
+#include <string>
 #include <vector>
 
 #define INT_MAX 9999
@@ -284,24 +284,27 @@ void dijkstra(struct Graph* graph, int src)
 int main(int argc, char *argv[]){
 
     int row=0, col=0, battery=0;
-    int rechargeNode;
+    int rechargeNode = 0;
     int nodeNum = 0;
 
     //*****file input & creat graph*****
     string studentNum = argv[1];
-    string filePath = ".\\" + studentNum + "\\matrix.data";
+    string filePath = ".\\" + studentNum + "\\floor.data";
+    //filePath = ".\\floorCleaner\\1071070s\\floor.data";  //for debug
     string firstLine; //get matrix info: row, col, battery
     string matrixString; //get matrix
 
-    ifstream mapFile;
-    mapFile.open(filePath);
+    ifstream mapFile(filePath);
 
     if (mapFile.is_open()){
 
+        getline(mapFile, firstLine);
+        istringstream ssInfo(matrixString);
+        string info;
         for (int i=0; i<3; i++){
-            getline(mapFile, firstLine, ' ');
-            if (i = 0) row = stoi(firstLine);
-            else if (i = 1) col = stoi(firstLine);
+            ssInfo >> info;
+            if (i == 0) row = stoi(firstLine);
+            else if (i == 1) col = stoi(firstLine);
             else battery = stoi(firstLine);
         }
 
@@ -321,8 +324,7 @@ int main(int argc, char *argv[]){
             bool isFirstToken = true;
             int currentCol = 0;
 
-            while (getline(ss, token, ' ')){
-
+            while (ss >> token){ //getline(ss, token, ' ')
                 if (token == "R" || stoi(token) == 0 ){ //paths to go
                     
                     if (token == "R"){
@@ -332,7 +334,7 @@ int main(int argc, char *argv[]){
                     if (isFirstToken){
                         isFirstToken = false;
                     }
-                    else if (stoi(lineRecord[index-1]) == 0 || lineRecord[index-1] == "R"){ //if predeccessor == 0 -> is connected
+                    else if (lineRecord[index-1] == "R" || stoi(lineRecord[index-1]) == 0){ //if predeccessor == 0 -> is connected
                         //add Edge to graph
                         //predeccessor nodeNum = nodeNum - 1
                         addEdge(graph, nodeNum, (nodeNum - 1), 1, col);
@@ -342,7 +344,7 @@ int main(int argc, char *argv[]){
                     if (isFirstLine){ //first line doesn't need to compare with upper line
                         isFirstLine = false;
                     }
-                    else if (stoi(lineRecord[index]) == 0 || lineRecord[index] == "R"){ //second line after
+                    else if (lineRecord[index] == "R" || stoi(lineRecord[index]) == 0){ //second line after
                         //add Edge to graph
                         // upper nodeNUm = nodeNum - col
                         addEdge(graph, nodeNum, (nodeNum - col), 1, col);
@@ -350,7 +352,8 @@ int main(int argc, char *argv[]){
                     }
                 }
                 else{ //walls
-                    //do nothing
+                    if(isFirstToken)
+                        isFirstToken = false;
                 }
 
                 nodeNum++; //record node number, start from 0
@@ -360,6 +363,8 @@ int main(int argc, char *argv[]){
                 lineRecord[index] = token;
                 index++;
             }
+            if (isFirstLine)
+                isFirstLine = false;
             currentRow++;
         }
         delete []lineRecord;
@@ -367,9 +372,11 @@ int main(int argc, char *argv[]){
         dijkstra(graph, rechargeNode);
     }
     else {
-        cerr << "unable to open input file";
-        return -1;
+        /*cerr << "unable to open input file";
+        return -1;*/
+        cout << "Unable to open file." << endl;
     }
+    mapFile.close();
 
     //*****path finding alogorithm*****
 
@@ -377,9 +384,9 @@ int main(int argc, char *argv[]){
 
     //*****file output*****
     ofstream pathFile;
-    string outputFilePath = ".\\" + studentNum + "\\peak.final";
+    string outputFilePath = ".\\" + studentNum + "\\final.path";
     pathFile.open(outputFilePath);
-    pathFile << endl; //output anwser
+    pathFile << "test" << endl; //output anwser
     pathFile.close();
 
     return 0;
