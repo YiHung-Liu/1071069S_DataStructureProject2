@@ -1,284 +1,143 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <bits/stdc++.h>
 #include <iostream>
 #include <fstream>
 #include <sstream>
 #include <string>
 #include <vector>
 
-#define INT_MAX 9999
+#define INF 0x3f3f3f3f
 
 using namespace std;
 
-struct AdjListNode{
-    int dest;
-    int weight;
-    int row;
-    int col;
-    struct AdjListNode* next;
-};
-struct AdjList 
-{ 
-    struct AdjListNode *head;  // pointer to head node of list 
-}; 
-struct Graph 
-{ 
-    int V; 
-    struct AdjList* array; 
+class Graph{
+    int V; //Number of vertices
+    list< pair<int, int> > *adj;
+
+public:
+    void createGraph(int V);
+    void addEdge(int u, int v, int w = 1);
+    void deleteEdge(int u, int v);
+    
+    vector<pair<int, int>> dijkstra(int src);
 };
 
-struct AdjListNode* newAdjListNode(int dest, int weight, int row, int col) 
-{ 
-    struct AdjListNode* newNode = (struct AdjListNode*) malloc(sizeof(struct AdjListNode)); 
-    newNode->dest = dest; 
-    newNode->weight = weight;
-    newNode->row = row;
-    newNode->col = col;
-    newNode->next = NULL; 
-    return newNode; 
+void Graph::createGraph(int V){
+    this->V = V;
+    adj = new list< pair<int, int> >[V];
 }
 
-struct Graph* createGraph(int V) 
-{ 
-    struct Graph* graph = (struct Graph*) malloc(sizeof(struct Graph)); 
-    graph->V = V; 
-  
-    // Create an array of adjacency lists.  Size of array will be V 
-    graph->array = (struct AdjList*) malloc(V * sizeof(struct AdjList)); 
-  
-     // Initialize each adjacency list as empty by making head as NULL 
-    for (int i = 0; i < V; ++i) 
-        graph->array[i].head = NULL; 
-  
-    return graph; 
-}
-  
-// Adds an edge to an undirected graph 
-void addEdge(struct Graph* graph, int src, int dest, int weight, int col) 
-{ 
-    // Add an edge from src to dest.  A new node is added to the adjacency 
-    // list of src.  The node is added at the begining 
-    struct AdjListNode* newNode = newAdjListNode(dest, weight, dest / col, dest % col); 
-    newNode->next = graph->array[src].head; 
-    graph->array[src].head = newNode; 
-  
-    // Since graph is undirected, add an edge from dest to src also 
-    newNode = newAdjListNode(src, weight, src / col, src % col); 
-    newNode->next = graph->array[dest].head; 
-    graph->array[dest].head = newNode; 
+void Graph::addEdge(int u, int v, int w){
+    adj[u].push_back(make_pair(v, w));
+    adj[v].push_back(make_pair(u, w));
 }
 
-// Structure to represent a min heap node 
-struct MinHeapNode 
-{ 
-    int  v; 
-    int dist; 
-}; 
-  
-// Structure to represent a min heap 
-struct MinHeap 
-{ 
-    int size;      // Number of heap nodes present currently 
-    int capacity;  // Capacity of min heap 
-    int *pos;     // This is needed for decreaseKey() 
-    struct MinHeapNode **array; 
-}; 
-  
-// A utility function to create a new Min Heap Node 
-struct MinHeapNode* newMinHeapNode(int v, int dist) 
-{ 
-    struct MinHeapNode* minHeapNode = 
-           (struct MinHeapNode*) malloc(sizeof(struct MinHeapNode)); 
-    minHeapNode->v = v; 
-    minHeapNode->dist = dist; 
-    return minHeapNode; 
+void Graph::deleteEdge(int u, int v){
+    list< pair<int, int> >::iterator i;
+    for (i = adj[u].begin(); i != adj[u].end(); ++i){
+        if ( (*i).first == v )
+            i = adj[u].erase(i);
+    }
+    list< pair<int, int> >::iterator j; 
+    for (j = adj[v].begin(); j != adj[v].end(); ++j){
+        if ( (*j).first == u )
+            j = adj[v].erase(j);
+    }
+}
+
+bool sortbysec(const pair<int,int> &a, const pair<int,int> &b){ 
+    return (a.second > b.second); 
 } 
-  
-// A utility function to create a Min Heap 
-struct MinHeap* createMinHeap(int capacity) 
+
+vector<pair<int, int>> Graph::dijkstra(int src)
 { 
-    struct MinHeap* minHeap = 
-         (struct MinHeap*) malloc(sizeof(struct MinHeap)); 
-    minHeap->pos = (int *)malloc(capacity * sizeof(int)); 
-    minHeap->size = 0; 
-    minHeap->capacity = capacity; 
-    minHeap->array = 
-         (struct MinHeapNode**) malloc(capacity * sizeof(struct MinHeapNode*)); 
-    return minHeap; 
-} 
+    // Create a set to store vertices that are being 
+    // prerocessed 
+    set< pair<int, int> > setds; 
   
-// A utility function to swap two nodes of min heap. Needed for min heapify 
-void swapMinHeapNode(struct MinHeapNode** a, struct MinHeapNode** b) 
-{ 
-    struct MinHeapNode* t = *a; 
-    *a = *b; 
-    *b = t; 
-} 
+    // Create a vector for distances and initialize all 
+    // distances as infinite (INF) 
+    vector<int> dist(V, INF); 
   
-// A standard function to heapify at given idx 
-// This function also updates position of nodes when they are swapped. 
-// Position is needed for decreaseKey() 
-void minHeapify(struct MinHeap* minHeap, int idx) 
-{ 
-    int smallest, left, right; 
-    smallest = idx; 
-    left = 2 * idx + 1; 
-    right = 2 * idx + 2; 
-  
-    if (left < minHeap->size && 
-        minHeap->array[left]->dist < minHeap->array[smallest]->dist ) 
-      smallest = left; 
-  
-    if (right < minHeap->size && 
-        minHeap->array[right]->dist < minHeap->array[smallest]->dist ) 
-      smallest = right; 
-  
-    if (smallest != idx) 
-    { 
-        // The nodes to be swapped in min heap 
-        MinHeapNode *smallestNode = minHeap->array[smallest]; 
-        MinHeapNode *idxNode = minHeap->array[idx]; 
-  
-        // Swap positions 
-        minHeap->pos[smallestNode->v] = idx; 
-        minHeap->pos[idxNode->v] = smallest; 
-  
-        // Swap nodes 
-        swapMinHeapNode(&minHeap->array[smallest], &minHeap->array[idx]); 
-  
-        minHeapify(minHeap, smallest); 
-    } 
-} 
-  
-// A utility function to check if the given minHeap is ampty or not 
-int isEmpty(struct MinHeap* minHeap) 
-{ 
-    return minHeap->size == 0; 
-} 
-  
-// Standard function to extract minimum node from heap 
-struct MinHeapNode* extractMin(struct MinHeap* minHeap) 
-{ 
-    if (isEmpty(minHeap)) 
-        return NULL; 
-  
-    // Store the root node 
-    struct MinHeapNode* root = minHeap->array[0]; 
-  
-    // Replace root node with last node 
-    struct MinHeapNode* lastNode = minHeap->array[minHeap->size - 1]; 
-    minHeap->array[0] = lastNode; 
-  
-    // Update position of last node 
-    minHeap->pos[root->v] = minHeap->size-1; 
-    minHeap->pos[lastNode->v] = 0; 
-  
-    // Reduce heap size and heapify root 
-    --minHeap->size; 
-    minHeapify(minHeap, 0); 
-  
-    return root; 
-} 
-  
-// Function to decreasy dist value of a given vertex v. This function 
-// uses pos[] of min heap to get the current index of node in min heap 
-void decreaseKey(struct MinHeap* minHeap, int v, int dist) 
-{ 
-    // Get the index of v in  heap array 
-    int i = minHeap->pos[v]; 
-  
-    // Get the node and update its dist value 
-    minHeap->array[i]->dist = dist; 
-  
-    // Travel up while the complete tree is not hepified. 
-    // This is a O(Logn) loop 
-    while (i && minHeap->array[i]->dist < minHeap->array[(i - 1) / 2]->dist) 
-    { 
-        // Swap this node with its parent 
-        minHeap->pos[minHeap->array[i]->v] = (i-1)/2; 
-        minHeap->pos[minHeap->array[(i-1)/2]->v] = i; 
-        swapMinHeapNode(&minHeap->array[i],  &minHeap->array[(i - 1) / 2]); 
-  
-        // move to parent index 
-        i = (i - 1) / 2; 
-    } 
-} 
-  
-// A utility function to check if a given vertex 
-// 'v' is in min heap or not 
-bool isInMinHeap(struct MinHeap *minHeap, int v) 
-{ 
-   if (minHeap->pos[v] < minHeap->size) 
-     return true; 
-   return false; 
-} 
-  
-// A utility function used to print the solution 
-void printArr(int dist[], int n) 
-{ 
-    printf("Vertex   Distance from Source\n"); 
-    for (int i = 0; i < n; ++i) 
-        printf("%d \t\t %d\n", i, dist[i]); 
-} 
-  
-// The main function that calulates distances of shortest paths from src to all 
-// vertices. It is a O(ELogV) function 
-void dijkstra(struct Graph* graph, int src) 
-{ 
-    int V = graph->V;// Get the number of vertices in graph 
-    int dist[V];      // dist values used to pick minimum weight edge in cut 
-  
-    // minHeap represents set E 
-    struct MinHeap* minHeap = createMinHeap(V); 
-  
-    // Initialize min heap with all vertices. dist value of all vertices  
-    for (int v = 0; v < V; ++v) 
-    { 
-        dist[v] = INT_MAX; 
-        minHeap->array[v] = newMinHeapNode(v, dist[v]); 
-        minHeap->pos[v] = v; 
-    } 
-  
-    // Make dist value of src vertex as 0 so that it is extracted first 
-    minHeap->array[src] = newMinHeapNode(src, dist[src]); 
-    minHeap->pos[src]   = src; 
+    // Insert source itself in Set and initialize its 
+    // distance as 0. 
+    setds.insert(make_pair(0, src)); 
     dist[src] = 0; 
-    decreaseKey(minHeap, src, dist[src]); 
   
-    // Initially size of min heap is equal to V 
-    minHeap->size = V; 
-  
-    // In the followin loop, min heap contains all nodes 
-    // whose shortest distance is not yet finalized. 
-    while (!isEmpty(minHeap)) 
+    /* Looping till all shortest distance are finalized 
+       then setds will become empty */
+    while (!setds.empty()) 
     { 
-        // Extract the vertex with minimum distance value 
-        struct MinHeapNode* minHeapNode = extractMin(minHeap); 
-        int u = minHeapNode->v; // Store the extracted vertex number 
+        // The first vertex in Set is the minimum distance 
+        // vertex, extract it from set. 
+        pair<int, int> tmp = *(setds.begin()); 
+        setds.erase(setds.begin()); 
   
-        // Traverse through all adjacent vertices of u (the extracted 
-        // vertex) and update their distance values 
-        struct AdjListNode* pCrawl = graph->array[u].head; 
-        while (pCrawl != NULL) 
+        // vertex label is stored in second of pair (it 
+        // has to be done this way to keep the vertices 
+        // sorted distance (distance must be first item 
+        // in pair) 
+        int u = tmp.second; 
+  
+        // 'i' is used to get all adjacent vertices of a vertex 
+        list< pair<int, int> >::iterator i; 
+        for (i = adj[u].begin(); i != adj[u].end(); ++i) 
         { 
-            int v = pCrawl->dest; 
+            // Get vertex label and weight of current adjacent 
+            // of u. 
+            int v = (*i).first; 
+            int weight = (*i).second; 
   
-            // If shortest distance to v is not finalized yet, and distance to v 
-            // through u is less than its previously calculated distance 
-            if (isInMinHeap(minHeap, v) && dist[u] != INT_MAX &&  
-                                          pCrawl->weight + dist[u] < dist[v]) 
+            //  If there is shorter path to v through u. 
+            if (dist[v] > dist[u] + weight) 
             { 
-                dist[v] = dist[u] + pCrawl->weight; 
+                /*  If distance of v is not INF then it must be in 
+                    our set, so removing it and inserting again 
+                    with updated less distance.   
+                    Note : We extract only those vertices from Set 
+                    for which distance is finalized. So for them,  
+                    we would never reach here.  */
+                if (dist[v] != INF) 
+                    setds.erase(setds.find(make_pair(dist[v], v))); 
   
-                // update distance value in min heap also 
-                decreaseKey(minHeap, v, dist[v]); 
+                // Updating distance of v 
+                dist[v] = dist[u] + weight; 
+                setds.insert(make_pair(dist[v], v)); 
             } 
-            pCrawl = pCrawl->next; 
         } 
     } 
   
-    // print the calculated shortest distances 
-    printArr(dist, V); 
+    int num = 0;
+    vector<pair<int, int>> newDist;
+    // Print shortest distances stored in dist[] 
+    printf("Vertex   Distance from Source\n");
+    for (int i = 0; i < V; ++i){
+        if (dist[i] < INF){
+            //printf("%d \t\t %d\n", i, dist[i]);
+            newDist.push_back(make_pair(i, dist[i]));
+            num++;
+        }
+    }
+
+    sort(newDist.begin(), newDist.end(), sortbysec);
+
+    for (int i = 0; i < num; ++i){
+        printf("%d \t\t %d\n", newDist[i].first, newDist[i].second);
+    }
+
+    return newDist;
+} 
+
+bool isInVec(vector<pair<int, int>> dist, int index){
+    vector<pair<int, int>>::iterator it;
+    int i = 0;
+    for (it = dist.begin() ; it != dist.end(); ++it){
+        if (dist[i].first == index)
+            return true;
+        i++;
+    }
+    return false;
 }
 
 int main(int argc, char *argv[]){
@@ -286,6 +145,8 @@ int main(int argc, char *argv[]){
     int row=0, col=0, battery=0;
     int rechargeNode = 0;
     int nodeNum = 0;
+    vector<pair<int, int>> dist;
+    Graph graph;
 
     //*****file input & creat graph*****
     string studentNum = argv[1];
@@ -312,7 +173,7 @@ int main(int argc, char *argv[]){
         bool isFirstLine = true;
 
         int V = row * col;
-        struct Graph* graph = createGraph(V);
+        graph.createGraph(V);
 
         int currentRow = 0;
 
@@ -337,7 +198,7 @@ int main(int argc, char *argv[]){
                     else if (lineRecord[index-1] == "R" || stoi(lineRecord[index-1]) == 0){ //if predeccessor == 0 -> is connected
                         //add Edge to graph
                         //predeccessor nodeNum = nodeNum - 1
-                        addEdge(graph, nodeNum, (nodeNum - 1), 1, col);
+                        graph.addEdge(nodeNum, (nodeNum - 1));
                         //*****************
                     }
 
@@ -347,7 +208,7 @@ int main(int argc, char *argv[]){
                     else if (lineRecord[index] == "R" || stoi(lineRecord[index]) == 0){ //second line after
                         //add Edge to graph
                         // upper nodeNUm = nodeNum - col
-                        addEdge(graph, nodeNum, (nodeNum - col), 1, col);
+                        graph.addEdge(nodeNum, (nodeNum - col));
                         //*****************
                     }
                 }
@@ -369,7 +230,7 @@ int main(int argc, char *argv[]){
         }
         delete []lineRecord;
 
-        dijkstra(graph, rechargeNode);
+        dist = graph.dijkstra(rechargeNode);
     }
     else {
         /*cerr << "unable to open input file";
@@ -380,7 +241,30 @@ int main(int argc, char *argv[]){
 
     //*****path finding alogorithm*****
 
-    
+    if (isInVec(dist, 22))
+        printf("yes\n");
+    else
+        printf("no\n");
+
+    int V = 0;//dist.size;
+    bool *visited = new bool[V]; 
+    stack<int> path;
+
+    for(int i = 0; i < V; i++){
+        visited[i] = false;
+    }
+
+    /*list<int> queue; 
+    while (!queue.empty()){
+
+    }*/
+    int index = 0;
+    if (index != rechargeNode){
+        visited[index] = true;
+        path.push(index);
+        graph.deleteEdge(dist[index].first, dist[index+1].first);
+        graph.dijkstra(rechargeNode);
+    }
 
     //*****file output*****
     ofstream pathFile;
